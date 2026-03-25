@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "start": "tsx index.ts",
-    "build": "esbuild src/functions/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/functions.js --external:@azure/functions --external:@prisma/client --external:@prisma/adapter-mssql --external:mssql --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build": "esbuild src/functions/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/functions.js --external:@azure/functions --external:@prisma/client --external:@prisma/adapter-mssql --external:mssql --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" && prisma generate --schema=prisma/schema.prisma",
     "watch": "tsc -w",
     "generate": "prisma generate --schema=prisma/schema.prisma"
   },

@@ -2,7 +2,7 @@ import { azureHonoHandler } from "@marplex/hono-azurefunc-adapter";
 import { app } from "@azure/functions";
 import honoApp from "../../index";
 
-app.http("httpTrigger", {
+app.http("api", {
   methods: [
     "GET",
     "POST",
