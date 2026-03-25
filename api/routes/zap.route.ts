@@ -80,7 +80,8 @@ const createRouteDef = createRoute({
 // ハンドラー登録
 app.openapi(listRoute, async (c) => {
   const userName = c.req.query('userName') || 'Default';
-  const incidents = await db().incidents.findMany({
+  const prisma = await db();
+  const incidents = await prisma.incidents.findMany({
     where: { userName },
     orderBy: [
       { date: 'desc' },
@@ -95,7 +96,8 @@ app.openapi(createRouteDef, async (c) => {
   const userName = incident.userName || 'Default';
   
   try {
-    const savedIncident = await db().incidents.create({
+    const prisma = await db();
+    const savedIncident = await prisma.incidents.create({
       data: {
         id: incident.id,
         userName,
