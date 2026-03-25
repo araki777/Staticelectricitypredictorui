@@ -172,7 +172,7 @@ const analyzeRoute = createRoute({
 app.openapi(listRoute, async (c) => {
   const userName = c.req.query('userName') || 'Default';
   try {
-    const items = await db.clothes.findMany({
+    const items = await db().clothes.findMany({
       where: { userName },
       orderBy: { createdAt: 'desc' },
       include: { materials: true }
@@ -188,7 +188,7 @@ app.openapi(createRouteDef, async (c) => {
   const userName = item.userName || 'Default';
   
   try {
-    const savedItem = await db.clothes.create({
+    const savedItem = await db().clothes.create({
       data: {
         id: item.id,
         userName,
@@ -216,7 +216,7 @@ app.openapi(createRouteDef, async (c) => {
 app.openapi(deleteRoute, async (c) => {
   const id = c.req.param('id');
   try {
-    await db.clothes.delete({
+    await db().clothes.delete({
       where: { id }
     });
     return c.json({ success: true }, 200) as any;
