@@ -12,6 +12,15 @@ const app = new OpenAPIHono();
 // CORSの設定
 app.use('/*', cors());
 
+// グローバルエラーハンドラー（500 の原因を可視化）
+app.onError((err, c) => {
+  console.error('Unhandled error:', err);
+  return c.json({
+    error: err.message || 'Unknown error',
+    stack: err.stack?.split('\n').slice(0, 5),
+  }, 500);
+});
+
 const api = new OpenAPIHono();
 
 // 各ルートを api サブアプリに登録 (プレフィックスなし)
