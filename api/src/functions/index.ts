@@ -1,9 +1,9 @@
 import { azureHonoHandler } from "@marplex/hono-azurefunc-adapter";
 import { app } from "@azure/functions";
-import honoApp from "../../index.js";
+import honoApp from "../../index";
 
-// Hono を介したメインの API エントリ
-app.http("index", {
+// Main API entry
+app.http("api", {
   methods: [
     "GET",
     "POST",
