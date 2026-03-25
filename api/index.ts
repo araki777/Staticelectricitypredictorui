@@ -13,20 +13,25 @@ const app = new OpenAPIHono();
 app.use('/*', cors());
 
 const api = new OpenAPIHono();
+
+// 各ルートを api サブアプリに登録 (プレフィックスなし)
 api.route('/jma', jmaRoute);
 api.route('/ai', aiRoute);
 api.route('/clothing', clothingRoute);
 api.route('/zap', zapRoute);
 
-// local development with Vite proxy (/api prefix)
+// あらゆるリクエストを捕捉できるよう、複数のパスでマウント
+// 1. ローカル開発用 (Vite プロキシ経由: /api/jma/...)
 app.route('/api', api);
-// production Azure SWA (prefix processed by Functions host)
+// 2. 本番環境 SWA 用 (ホストが /api を処理済みかつ先頭スラッシュを保持する場合: /jma/...)
 app.route('/', api);
+// 3. 念のため: /api/api/... のような重複が発生した場合にも備える
+app.route('/api/api', api);
 
-
-// ルートエンドポイント
+// ルートエンドポイント (疎通確認用)
+app.get('/health', (c) => c.text('OK'));
 app.get('/', (c) => {
-  return c.text('JMA AMeDAS Proxy API with Hono - OpenAPI and Swagger UI enabled');
+  return c.text('JMA AMeDAS Proxy API with Hono - Resilient Routing Enabled');
 });
 
 // OpenAPI ドキュメント設定 (ルート登録の後に配置)
