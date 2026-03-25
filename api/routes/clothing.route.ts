@@ -187,7 +187,7 @@ app.openapi(listRoute, async (c) => {
 app.openapi(createRouteDef, async (c) => {
   const item = await c.req.json();
   const userName = item.userName || 'Default';
-  
+
   try {
     const prisma = await db();
     const savedItem = await prisma.clothes.create({
@@ -232,7 +232,7 @@ app.openapi(deleteRoute, async (c) => {
 app.openapi(analyzeRoute, async (c) => {
   try {
     const { image, mimeType } = await c.req.json();
-    
+
     if (!image || !mimeType) {
       return c.json({ error: 'Image and mimeType are required' }, 400) as any;
     }
@@ -255,7 +255,7 @@ app.openapi(analyzeRoute, async (c) => {
     if (!jsonMatch) {
       throw new Error('Failed to parse AI response as JSON');
     }
-    
+
     const analysis = JSON.parse(jsonMatch[0]);
     return c.json(analysis, 200) as any;
 
