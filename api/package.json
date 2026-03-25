@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "start": "tsx index.ts",
-    "build": "esbuild src/functions/index.ts --bundle --platform=node --format=cjs --target=node20 --outfile=index.js --external:@azure/functions --external:@prisma/client --external:@prisma/adapter-mssql --external:mssql && prisma generate --schema=prisma/schema.prisma",
+    "build": "esbuild src/functions/index.ts --bundle --platform=node --format=cjs --target=node20 --outfile=index.js --external:@azure/functions --external:@prisma/adapter-mssql --external:mssql && prisma generate --schema=prisma/schema.prisma",
     "watch": "tsc -w",
     "generate": "prisma generate --schema=prisma/schema.prisma"
   },
