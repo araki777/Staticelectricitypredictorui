@@ -9,4 +9,9 @@ data.db-wal
 
 # Temporary / Test data
 test_map.json
-test_table.json
+test_table.json
+
+local.settings.json
+settings.json
+
+dist

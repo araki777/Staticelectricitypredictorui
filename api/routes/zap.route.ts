@@ -1,39 +1,120 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import db from '../lib/db.js';
 
-const app = new Hono();
+const app = new OpenAPIHono();
 
-/**
- * 過去の静電気インシデント一覧を取得します
- */
-app.get('/', (c) => {
-  const userName = c.req.query('userName') || 'Default';
-  const incidents = db.prepare('SELECT * FROM incidents WHERE userName = ? ORDER BY date DESC, time DESC').all(userName);
-  return c.json(incidents);
+// スキーマ定義
+const IncidentSchema = z.object({
+  id: z.string().openapi({ example: 'uuid-1234' }),
+  userName: z.string().openapi({ example: 'Default' }),
+  date: z.string().openapi({ example: '2025-03-25' }),
+  time: z.string().openapi({ example: '15:30' }),
+  humidity: z.number().nullable().openapi({ example: 45 }),
+  temperature: z.number().nullable().openapi({ example: 20 }),
+  clothing: z.string().nullable().openapi({ example: 'polyester shirt' }),
+}).openapi('Incident');
+
+const SuccessResponseSchema = z.object({
+  success: z.boolean().openapi({ example: true }),
+  incident: IncidentSchema,
+}).openapi('SuccessResponse');
+
+const ErrorSchema = z.object({
+  error: z.string(),
+  details: z.string().optional(),
+}).openapi('Error');
+
+// ルート定義
+const listRoute = createRoute({
+  method: 'get',
+  path: '/',
+  request: {
+    query: z.object({
+      userName: z.string().optional().openapi({ example: 'Default' }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z.array(IncidentSchema),
+        },
+      },
+      description: 'インシデント一覧を返します',
+    },
+  },
 });
 
-/**
- * 静電気インシデントを登録します
- */
-app.post('/', async (c) => {
+const createRouteDef = createRoute({
+  method: 'post',
+  path: '/',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: IncidentSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: SuccessResponseSchema,
+        },
+      },
+      description: 'インシデントを登録しました',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+      description: '登録エラー',
+    },
+  },
+});
+
+// ハンドラー登録
+app.openapi(listRoute, async (c) => {
+  const userName = c.req.query('userName') || 'Default';
+  const incidents = await db.incidents.findMany({
+    where: { userName },
+    orderBy: [
+      { date: 'desc' },
+      { time: 'desc' }
+    ]
+  });
+  return c.json(incidents, 200);
+});
+
+app.openapi(createRouteDef, async (c) => {
   const incident = await c.req.json();
   const userName = incident.userName || 'Default';
   
-  db.prepare(`
-    INSERT INTO incidents (id, userName, date, time, humidity, temperature, clothing)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    incident.id,
-    userName,
-    incident.date,
-    incident.time,
-    incident.humidity ?? null,
-    incident.temperature ?? null,
-    incident.clothing ?? null
-  );
+  try {
+    const savedIncident = await db.incidents.create({
+      data: {
+        id: incident.id,
+        userName,
+        date: incident.date,
+        time: incident.time,
+        humidity: incident.humidity ?? null,
+        temperature: incident.temperature ?? null,
+        clothing: incident.clothing ?? null
+      }
+    });
 
-  return c.json({ success: true, incident });
+    return c.json({ success: true, incident: savedIncident }, 200);
+  } catch (e: any) {
+    console.error('Incident save failed:', e);
+    return c.json({ 
+      error: 'Failed to save incident', 
+      details: e instanceof Error ? e.message : String(e) 
+    }, 500);
+  }
 });
-
 
 export default app;

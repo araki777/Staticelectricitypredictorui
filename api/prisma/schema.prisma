@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+
+model clothes {
+  id        String      @id @db.NVarChar(100)
+  userName  String?     @default("Default") @db.NVarChar(100)
+  name      String      @db.NVarChar(200)
+  category  String?     @db.NVarChar(100)
+  advice    String?     @db.NVarChar(MAX)
+  imageUrl  String?     @db.NVarChar(MAX)
+  createdAt String      @db.NVarChar(100)
+  materials materials[]
+}
+
+model materials {
+  id         Int     @id @default(autoincrement())
+  clothingId String  @db.NVarChar(100)
+  name       String  @db.NVarChar(100)
+  percent    Int
+  clothes    clothes @relation(fields: [clothingId], references: [id], onDelete: Cascade)
+}
+
+model incidents {
+  id          String  @id @db.NVarChar(100)
+  userName    String  @default("Default") @db.NVarChar(100)
+  date        String  @db.NVarChar(20)
+  time        String  @db.NVarChar(20)
+  humidity    Float?
+  temperature Float?
+  clothing    String? @db.NVarChar(200)
+}

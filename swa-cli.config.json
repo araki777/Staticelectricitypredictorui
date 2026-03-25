@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/swa-cli.config.json",
+  "configurations": {
+    "Staticelectricitypredictorui": {
+      "appLocation": ".",
+      "apiLocation": "api",
+      "outputLocation": "dist",
+      "appBuildCommand": "pnpm run build",
+      "apiBuildCommand": "pnpm --prefix api run build",
+      "run": "pnpm run dev",
+      "apiPort": 7071
+    }
+  }
+}
