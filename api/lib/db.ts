@@ -8,7 +8,7 @@ export async function getPrisma() {
   if (prisma) return prisma;
 
   try {
-    const { PrismaClient } = await import("@prisma/client");
+    const { PrismaClient } = await import("./prisma-client");
     const { PrismaMssql } = await import("@prisma/adapter-mssql");
 
     const dbConfig = {
