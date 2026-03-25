@@ -1,8 +1,9 @@
 import { azureHonoHandler } from "@marplex/hono-azurefunc-adapter";
 import { app } from "@azure/functions";
-import honoApp from "../../index";
+import honoApp from "../../index.js";
 
-app.http("api", {
+// Hono を介したメインの API エントリ
+app.http("index", {
   methods: [
     "GET",
     "POST",
@@ -17,4 +18,13 @@ app.http("api", {
   authLevel: "anonymous",
   route: "{*proxy}",
   handler: azureHonoHandler(honoApp.fetch),
+});
+
+// 診断用の純粋な Azure Function
+app.http("hello", {
+  methods: ["GET"],
+  authLevel: "anonymous",
+  handler: async (request, context) => {
+    return { body: "Hello from direct Azure Function!" };
+  },
 });
