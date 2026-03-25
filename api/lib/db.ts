@@ -30,9 +30,9 @@ export async function getPrisma() {
     const adapter = new PrismaMssql(dbConfig);
     prisma = new PrismaClient({ adapter });
     return prisma;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to initialize Prisma:", error);
-    throw new Error("Database is not available");
+    throw new Error(`Database is not available: ${error?.message || String(error)}`);
   }
 }
 
