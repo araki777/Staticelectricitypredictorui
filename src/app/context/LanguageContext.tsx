@@ -58,7 +58,7 @@ const translations: Record<Language, Translations> = {
     },
     currentStatus: {
       title: "Current Status",
-      location: "Matsue, Shimane",
+      location: "Observation Point",
       humidity: "Humidity",
       temperature: "Temperature",
       riskLevel: "Static Risk Level",
@@ -105,7 +105,7 @@ const translations: Record<Language, Translations> = {
     },
     currentStatus: {
       title: "現在の状況",
-      location: "島根県松江市",
+      location: "観測地点",
       humidity: "湿度",
       temperature: "気温",
       riskLevel: "静電気リスクレベル",
