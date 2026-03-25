@@ -12,11 +12,16 @@ const app = new OpenAPIHono();
 // CORSの設定
 app.use('/*', cors());
 
-// JMA関連のルートを追加
-app.route('/api/jma', jmaRoute);
-app.route('/api/ai', aiRoute);
-app.route('/api/clothing', clothingRoute);
-app.route('/api/zap', zapRoute);
+const api = new OpenAPIHono();
+api.route('/jma', jmaRoute);
+api.route('/ai', aiRoute);
+api.route('/clothing', clothingRoute);
+api.route('/zap', zapRoute);
+
+// local development with Vite proxy (/api prefix)
+app.route('/api', api);
+// production Azure SWA (prefix processed by Functions host)
+app.route('/', api);
 
 
 // ルートエンドポイント
