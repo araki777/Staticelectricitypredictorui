@@ -54,7 +54,7 @@ const translations: Record<Language, Translations> = {
   en: {
     header: {
       title: "Static Electricity Predictor GPT",
-      subtitle: "Matsue's Winter Static Shield",
+      subtitle: "{{location}}'s Winter Static Shield",
     },
     currentStatus: {
       title: "Current Status",
@@ -101,7 +101,7 @@ const translations: Record<Language, Translations> = {
   ja: {
     header: {
       title: "静電気予測GPT",
-      subtitle: "松江の冬 静電気シールド",
+      subtitle: "{{location}}の冬 静電気シールド",
     },
     currentStatus: {
       title: "現在の状況",
@@ -155,15 +155,22 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
+export function LanguageProvider({ children, locationName }: { children: ReactNode; locationName?: string }) {
   const [language, setLanguage] = useState<Language>("ja");
+
+  // Create a version of translations with the location injected
+  const t = { ...translations[language] };
+  t.header = { ...t.header };
+  
+  const displayLocation = locationName || (language === "ja" ? "各地" : "Global");
+  t.header.subtitle = t.header.subtitle.replace("{{location}}", displayLocation);
 
   return (
     <LanguageContext.Provider
       value={{
         language,
         setLanguage,
-        t: translations[language],
+        t,
       }}
     >
       {children}
