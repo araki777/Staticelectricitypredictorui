@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { JmaApi } from '../integration/jma.js';
-import { calculateStaticRisk } from '../lib/weather.js';
+import { calculateStaticRisk, calculateStaticRiskScore } from '../lib/weather.js';
 
 const app = new OpenAPIHono();
 
@@ -86,6 +86,37 @@ const weatherRoute = createRoute({
   },
 });
 
+// ルート定義: ランキング
+const rankingRoute = createRoute({
+  method: 'get',
+  path: '/ranking',
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: z.array(z.object({
+            code: z.string(),
+            name: z.string(),
+            humidity: z.number(),
+            temperature: z.number(),
+            riskScore: z.number(),
+            riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+          })),
+        },
+      },
+      description: '静電気リスクランキングを取得します',
+    },
+    500: {
+      content: {
+        'application/json': {
+          schema: ErrorSchema,
+        },
+      },
+      description: 'サーバーエラー',
+    },
+  },
+});
+
 // ハンドラー登録
 app.openapi(stationsRoute, async (c) => {
   try {
@@ -120,6 +151,43 @@ app.openapi(weatherRoute, async (c) => {
     }, 200) as any;
   } catch (error) {
     return c.json({ error: 'Failed to fetch weather data' }, 500) as any;
+  }
+});
+
+app.openapi(rankingRoute, async (c) => {
+  try {
+    const [stations, latestTime] = await Promise.all([
+      JmaApi.getMajorStations(),
+      JmaApi.getLatestTime()
+    ]);
+    const mapData = await JmaApi.getMapData(latestTime);
+
+    const ranking = stations
+      .map(s => {
+        const data = mapData[s.code];
+        if (!data || data.humidity === undefined || data.temp === undefined) return null;
+        
+        const humidity = data.humidity[0];
+        const temperature = data.temp[0];
+        const riskScore = calculateStaticRiskScore(humidity, temperature);
+        const riskLevel = calculateStaticRisk(humidity, temperature);
+
+        return {
+          code: s.code,
+          name: s.name,
+          humidity,
+          temperature,
+          riskScore,
+          riskLevel
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => b.riskScore - a.riskScore);
+
+    return c.json(ranking, 200) as any;
+  } catch (error) {
+    console.error("Ranking fetch error:", error);
+    return c.json({ error: 'Failed to fetch ranking' }, 500) as any;
   }
 });
 
