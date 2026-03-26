@@ -9,14 +9,20 @@ import { toast, Toaster } from "sonner";
 import { LanguageProvider, useLanguage } from "./context/LanguageContext";
 import { RiskLevel, Station, WeatherData } from "./types/weather";
 
-function AppContent() {
+function AppContent({ 
+  points, 
+  selectedPoint, 
+  setSelectedPoint 
+}: { 
+  points: Station[]; 
+  selectedPoint: string; 
+  setSelectedPoint: (code: string) => void;
+}) {
   const { language, t } = useLanguage();
   const [clothingMaterial, setClothingMaterial] = useState("polyester");
   const [incidents, setIncidents] = useState<ZapIncident[]>([]);
   
-  // AMeDAS State
-  const [points, setPoints] = useState<Station[]>([]);
-  const [selectedPoint, setSelectedPoint] = useState<string>("44132"); // Default: Tokyo
+  // AMeDAS State (Lifted but remaining status info)
   const [humidity, setHumidity] = useState<number | null>(null);
   const [temperature, setTemperature] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -122,21 +128,7 @@ function AppContent() {
     }
   };
 
-  // Fetch AMeDAS Table for points
-  useEffect(() => {
-    const fetchStations = async () => {
-      try {
-        const response = await fetch('/api/jma/stations');
-        if (!response.ok) throw new Error('Failed to fetch stations');
-        const data: Station[] = await response.json();
-        setPoints(data);
-      } catch (error) {
-        console.error("Failed to fetch AMeDAS stations:", error);
-        setPoints([{ code: "44132", name: "東京", kana: "トウキョウ" }]);
-      }
-    };
-    fetchStations();
-  }, []);
+  // Fetch AMeDAS Table (Lifted to App)
 
   const fetchWeatherData = useCallback(async (code: string, material: string) => {
     setLoading(true);
@@ -287,9 +279,35 @@ function AppContent() {
 }
 
 function App() {
+  const [points, setPoints] = useState<Station[]>([]);
+  const [selectedPoint, setSelectedPoint] = useState<string>("44132"); // Default: Tokyo
+
+  // Fetch AMeDAS Table for points
+  useEffect(() => {
+    const fetchStations = async () => {
+      try {
+        const response = await fetch('/api/jma/stations');
+        if (!response.ok) throw new Error('Failed to fetch stations');
+        const data: Station[] = await response.json();
+        setPoints(data);
+      } catch (error) {
+        console.error("Failed to fetch AMeDAS stations:", error);
+        setPoints([{ code: "44132", name: "東京", kana: "トウキョウ" }]);
+      }
+    };
+    fetchStations();
+  }, []);
+
+  const selectedPointObj = points.find((p) => p.code === selectedPoint);
+  const selectedPointName = selectedPointObj ? selectedPointObj.name : "";
+
   return (
-    <LanguageProvider>
-      <AppContent />
+    <LanguageProvider locationName={selectedPointName}>
+      <AppContent 
+        points={points} 
+        selectedPoint={selectedPoint} 
+        setSelectedPoint={setSelectedPoint} 
+      />
     </LanguageProvider>
   );
 }
