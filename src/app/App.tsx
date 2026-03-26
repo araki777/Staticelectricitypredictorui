@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "./components/Header";
 import { CurrentStatus } from "./components/CurrentStatus";
 import { AIAdvice } from "./components/AIAdvice";
+import { RankingBoard } from "./components/RankingBoard";
 import { UserInput } from "./components/UserInput";
 import { History, ZapIncident } from "./components/History";
 import { ClothingRegistration, ClothingItem } from "./components/ClothingRegistration";
@@ -21,8 +22,6 @@ function AppContent({
   const { language, t } = useLanguage();
   const [clothingMaterial, setClothingMaterial] = useState("polyester");
   const [incidents, setIncidents] = useState<ZapIncident[]>([]);
-  
-  // AMeDAS State (Lifted but remaining status info)
   const [humidity, setHumidity] = useState<number | null>(null);
   const [temperature, setTemperature] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -30,6 +29,7 @@ function AppContent({
   const [aiAdvice, setAiAdvice] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [ranking, setRanking] = useState<any[]>([]);
 
   // User Profile State
   const [currentUser, setCurrentUser] = useState<string>(() => {
@@ -56,30 +56,112 @@ function AppContent({
         if (clothesRes.ok) {
           const clothesData = await clothesRes.json();
           setRegisteredClothes(clothesData);
-        } else {
-          throw new Error('Failed to fetch clothing data');
         }
-
         if (incidentsRes.ok) {
           const incidentsData = await incidentsRes.json();
           setIncidents(incidentsData);
-        } else {
-          throw new Error('Failed to fetch zap data');
         }
       } catch (e) {
         console.error("Failed to load data from backend", e);
-        toast.error(language === "ja" ? "データの取得に失敗しました" : "Failed to load data");
       }
     };
     fetchData();
-  }, [currentUser, language]);
-
+  }, [currentUser]);
 
   // Sync users to localStorage
   useEffect(() => {
     localStorage.setItem("current_user", currentUser);
     localStorage.setItem("available_users", JSON.stringify(availableUsers));
   }, [currentUser, availableUsers]);
+
+  // Fetch Weather Data
+  useEffect(() => {
+    const fetchWeather = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/jma/weather/${selectedPoint}${clothingMaterial ? `?material=${clothingMaterial}` : ""}`);
+        if (!response.ok) throw new Error("Failed to fetch weather");
+        const data = await response.json();
+        setHumidity(data.humidity);
+        setTemperature(data.temperature);
+        setRiskLevel(data.riskLevel);
+      } catch (error) {
+        console.error("Failed to fetch weather data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchWeather();
+  }, [selectedPoint, clothingMaterial]);
+
+  // Fetch Rankings for City Rank
+  useEffect(() => {
+    const fetchRanking = async () => {
+      try {
+        const response = await fetch("/api/jma/ranking");
+        if (response.ok) {
+          const data = await response.json();
+          setRanking(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch ranking:", error);
+      }
+    };
+    fetchRanking();
+  }, []);
+
+  const selectedCityRank = ranking.findIndex(r => r.code === selectedPoint) + 1;
+
+  const handleGetAdvice = async () => {
+    if (humidity === null) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const response = await fetch("/api/ai/advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ humidity, temperature, material: clothingMaterial }),
+      });
+      const data = await response.json();
+      if (data.advice) {
+        setAiAdvice(data.advice);
+      } else if (data.details) {
+        setAiError(data.details);
+      }
+    } catch (err: any) {
+      setAiError(err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+
+  const handleZapped = async () => {
+    const now = new Date();
+    const newIncident: ZapIncident = {
+      id: Date.now().toString(),
+      date: now.toISOString().split("T")[0],
+      time: now.toLocaleTimeString(language === "ja" ? "ja-JP" : "en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      humidity: humidity || 0,
+      temperature: temperature || 0,
+      clothing: clothingMaterial,
+    };
+
+    try {
+      const response = await fetch('/api/zap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newIncident, userName: currentUser }),
+      });
+
+      if (response.ok) {
+        setIncidents([newIncident, ...incidents]);
+        toast.error("バチッときた！⚡ 記録しました。");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleRegisterClothing = async (item: ClothingItem) => {
     try {
@@ -93,120 +175,7 @@ function AppContent({
         setRegisteredClothes([item, ...registeredClothes]);
         setShowRegistration(false);
         setClothingMaterial(`custom-${item.id}`);
-      } else {
-        throw new Error('Failed to register clothing');
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error(language === "ja" ? "保存に失敗しました" : "Failed to save");
-    }
-  };
-
-
-
-  // AIアドバイスを取得する関数
-  const fetchAIAdvice = async (h: number, temp: number) => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const response = await fetch('/api/ai/advice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ humidity: h, temperature: temp }),
-      });
-      const data = await response.json();
-      if (data.advice) {
-        setAiAdvice(data.advice);
-      } else if (data.error) {
-        setAiError(data.error);
-      }
-    } catch (err) {
-      console.error('Failed to fetch AI advice:', err);
-      setAiError('AI連携に失敗しました');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // Fetch AMeDAS Table (Lifted to App)
-
-  const fetchWeatherData = useCallback(async (code: string, material: string) => {
-    setLoading(true);
-    try {
-      // 素材情報をクエリパラメータとして渡す
-      let materialParam = material;
-      if (material.startsWith("custom-")) {
-        const customId = material.replace("custom-", "");
-        const item = registeredClothes.find(c => c.id === customId);
-        if (item && item.materials.length > 0) {
-          // 最も割合の高い素材を使用
-          materialParam = item.materials.reduce((prev, current) => (prev.percent > current.percent) ? prev : current).name;
-        }
-      }
-
-      const response = await fetch(`/api/jma/weather/${code}?material=${encodeURIComponent(materialParam)}`);
-      if (!response.ok) throw new Error('Failed to fetch weather');
-      const data: WeatherData = await response.json();
-      
-      setHumidity(data.humidity);
-      setTemperature(data.temperature);
-      setRiskLevel(data.riskLevel);
-      
-      if (data.humidity !== null && data.temperature !== null) {
-        // fetchAIAdvice(data.humidity, data.temperature); // 自動取得を停止
-      }
-    } catch (error) {
-      console.error("Failed to fetch weather data:", error);
-      toast.error(language === "ja" ? "気象データの取得に失敗しました" : "Failed to fetch weather data");
-    } finally {
-      setLoading(false);
-    }
-  }, [language, registeredClothes]);
-
-  useEffect(() => {
-    fetchWeatherData(selectedPoint, clothingMaterial);
-  }, [selectedPoint, clothingMaterial, fetchWeatherData]);
-
-  const handleGetAdvice = () => {
-    if (humidity !== null && temperature !== null) {
-      fetchAIAdvice(humidity, temperature);
-    } else {
-      toast.error(language === "ja" ? "気象データを先に読み込んでください" : "Please load weather data first");
-    }
-  };
-
-  const handleZapped = async () => {
-    const curHumidity = humidity ?? 30;
-    const curTemperature = temperature ?? 10;
-    const now = new Date();
-
-    let displayClothing = clothingMaterial;
-    if (clothingMaterial.startsWith("custom-")) {
-      const item = registeredClothes.find(c => c.id === clothingMaterial.replace("custom-", ""));
-      displayClothing = item ? item.name : clothingMaterial;
-    }
-
-    const newIncident: ZapIncident = {
-      id: Date.now().toString(),
-      date: now.toISOString().split("T")[0],
-      time: now.toLocaleTimeString(language === "ja" ? "ja-JP" : "en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
-      humidity: curHumidity,
-      temperature: curTemperature,
-      clothing: displayClothing.charAt(0).toUpperCase() + displayClothing.slice(1),
-    };
-
-    try {
-      const response = await fetch('/api/zap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newIncident, userName: currentUser }),
-      });
-
-      if (response.ok) {
-        setIncidents([newIncident, ...incidents]);
-        toast.success(t.toast.logged, { description: `${t.toast.description} ${newIncident.time}` });
-      } else {
-        throw new Error('Failed to save incident');
+        toast.success("新しい服を登録しました！");
       }
     } catch (e) {
       console.error(e);
@@ -215,7 +184,7 @@ function AppContent({
   };
 
   return (
-    <div className="dark min-h-screen bg-slate-950 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100">
+    <div className="dark min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 pb-20">
       <Header 
         currentUser={currentUser} 
         availableUsers={availableUsers} 
@@ -223,45 +192,52 @@ function AppContent({
         onAddUser={(name) => setAvailableUsers([...availableUsers, name])}
       />
 
-      
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="space-y-8">
-          {/* Current Status Section */}
-          <CurrentStatus
-            location={t.currentStatus.location}
-            humidity={humidity}
-            temperature={temperature}
-            riskLevel={riskLevel}
-            selectedPoint={selectedPoint}
-            onPointChange={setSelectedPoint}
-            points={points}
-            loading={loading}
-          />
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Left Column: Status & Insights (col-span-3) */}
+          <section className="lg:col-span-3 space-y-8 animate-in slide-in-from-left duration-500">
+            <CurrentStatus
+              location={t.currentStatus.location}
+              humidity={humidity}
+              temperature={temperature}
+              riskLevel={riskLevel}
+              selectedPoint={selectedPoint}
+              onPointChange={setSelectedPoint}
+              points={points}
+              loading={loading}
+              rank={selectedCityRank > 0 ? selectedCityRank : undefined}
+            />
+          </section>
 
-          {/* AI Advice Section */}
-          <AIAdvice 
-            advice={aiAdvice} 
-            loading={aiLoading} 
-            error={aiError} 
-            onRefresh={handleGetAdvice}
-            canRefresh={!loading && humidity !== null}
-          />
+          {/* Middle Column: Interaction & History (col-span-5) */}
+          <section className="lg:col-span-5 space-y-8 animate-in fade-in duration-700">
+            <AIAdvice 
+              advice={aiAdvice} 
+              loading={aiLoading} 
+              error={aiError} 
+              onRefresh={handleGetAdvice}
+              canRefresh={!loading && humidity !== null}
+            />
+            
+            <UserInput
+              clothingMaterial={clothingMaterial}
+              onClothingChange={setClothingMaterial}
+              onZapped={handleZapped}
+              registeredClothes={registeredClothes}
+              onAddClick={() => setShowRegistration(true)}
+            />
 
-          {/* User Input Section */}
-          <UserInput
-            clothingMaterial={clothingMaterial}
-            onClothingChange={setClothingMaterial}
-            onZapped={handleZapped}
-            registeredClothes={registeredClothes}
-            onAddClick={() => setShowRegistration(true)}
-          />
+            <History incidents={incidents} />
+          </section>
 
-          {/* History Section */}
-          <History incidents={incidents} />
+          {/* Right Column: Global Ranking (col-span-4) */}
+          <section className="lg:col-span-4 animate-in slide-in-from-right duration-500">
+            <RankingBoard />
+          </section>
         </div>
       </main>
 
-      {/* Registration Modal Overlay */}
       {showRegistration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="w-full max-w-lg">
